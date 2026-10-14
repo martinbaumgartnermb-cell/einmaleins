@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <!-- Damit die App auf dem iPad-Homebildschirm wie eine echte App startet -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Einmaleins">
+  <title>Einmaleins-Trainer</title>
+
+  <!-- ================= AUSSEHEN (CSS) ================= -->
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Trebuchet MS", Arial, sans-serif;
+      background: linear-gradient(#fff3d6, #ffe0f0);
+      min-height: 100vh;
+      color: #333;
+      text-align: center;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    button {
+      font-family: inherit;
+      cursor: pointer;
+      touch-action: manipulation;   /* verhindert Zoomen beim schnellen Tippen */
+    }
+
+    /* Kopfzeile mit Titel und Münzen */
+    .kopf {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      max-width: 820px;
+      margin: 0 auto;
+    }
+    h1 { margin: 0; font-size: 26px; color: #e85d04; }
+    .muenzen {
+      font-size: 24px;
+      background: white;
+      padding: 6px 16px;
+      border-radius: 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    }
+
+    /* ---------- Startseite: Karten für die Reihen ---------- */
+    #start { padding: 0 16px 30px; }
+    .frage { font-size: 22px; margin: 4px 0 16px; }
+
+    /* Begrüssung mit Foto */
+    .begruessung { margin: 4px 0 10px; }
+    .foto {
+      display: inline-block;
+      width: 130px;
+      height: 130px;
+      border-radius: 50%;
+      border: 6px solid white;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+      background: #ffd166;
+      overflow: hidden;
+      cursor: pointer;
+      animation: reinhuepfen 0.8s ease-out;
+    }
+    .foto img { width: 100%; height: 100%; object-fit: cover; display: none; }
+    .foto span { display: block; padding-top: 30px; font-size: 18px; color: #7a5200; line-height: 1.3; }
+    .begruessung h2 { font-size: 36px; margin: 10px 0 0; color: #e85d04; }
+    .winken { display: inline-block; animation: winken 1.2s ease-in-out 2; transform-origin: 70% 70%; }
+
+    @keyframes reinhuepfen {
+      0%   { transform: scale(0.3); opacity: 0; }
+      70%  { transform: scale(1.1); opacity: 1; }
+      100% { transform: scale(1); }
+    }
+    @keyframes winken {
+      0%, 100% { transform: rotate(0deg); }
+      25%      { transform: rotate(20deg); }
+      75%      { transform: rotate(-10deg); }
+    }
+
+    .raster {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 14px;
+      max-width: 820px;
+      margin: 0 auto;
+    }
+    .karte {
+      border: none;
+      border-radius: 22px;
+      padding: 14px 10px 12px;
+      color: white;
+      box-shadow: 0 5px 0 rgba(0,0,0,0.18);
+    }
+    .karte:active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(0,0,0,0.18); }
+    .karte .tier  { font-size: 42px; display: block; }
+    .karte .name  { font-size: 24px; font-weight: bold; display: block; margin: 2px 0 8px; }
+    .karte .stand { font-size: 15px; display: block; margin-top: 6px; }
+    .gemischt { grid-column: 1 / -1; }
+
+    .balken {
+      background: rgba(255,255,255,0.35);
+      height: 10px;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .balken div { background: white; height: 100%; }
+
+    .zuruecksetzen {
+      margin-top: 30px;
+      background: none;
+      border: none;
+      color: #999;
+      font-size: 14px;
+      text-decoration: underline;
+    }
+
+    /* ---------- Spielseite ---------- */
+    #spiel { display: none; padding: 0 16px 30px; max-width: 520px; margin: 0 auto; }
+
+    .zurueck {
+      background: white;
+      border: none;
+      border-radius: 14px;
+      font-size: 18px;
+      padding: 8px 14px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    }
+
+    #aufgabe { font-size: 54px; font-weight: bold; margin: 6px 0 12px; }
+
+    #anzeige {
+      font-size: 48px;
+      font-weight: bold;
+      background: white;
+      width: 180px;
+      height: 74px;
+      line-height: 66px;
+      margin: 0 auto;
+      border: 4px solid #ffd166;
+      border-radius: 18px;
+    }
+    #anzeige.richtig { border-color: #06d6a0; background: #e3fff5; }
+    #anzeige.falsch  { border-color: #e63946; background: #ffe5e7; }
+
+    #rueckmeldung { font-size: 24px; min-height: 34px; margin: 10px 0 2px; }
+    #bisMuenze    { font-size: 15px; color: #777; margin-bottom: 12px; }
+
+    /* Die Zahlentastatur */
+    .tastatur {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      max-width: 330px;
+      margin: 0 auto;
+    }
+    .taste {
+      font-size: 34px;
+      padding: 14px 0;
+      border: none;
+      border-radius: 18px;
+      background: white;
+      box-shadow: 0 5px 0 #ddd;
+    }
+    .taste:active { transform: translateY(4px); box-shadow: 0 1px 0 #ddd; }
+    .taste.loeschen { background: #ffd6d6; box-shadow: 0 5px 0 #f0b0b0; }
+    .taste.ok       { background: #06d6a0; color: white; box-shadow: 0 5px 0 #04a57b; }
+
+    /* Fortschritt der Reihe */
+    .fortschritt-titel { font-size: 18px; margin: 24px 0 8px; }
+    .fortschritt {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+    }
+    .feld {
+      border-radius: 10px;
+      padding: 6px 2px;
+      font-size: 15px;
+      color: white;
+      font-weight: bold;
+    }
+    .feld small { display: block; font-weight: normal; font-size: 12px; }
+    .feld.neu    { background: #b5b5b5; }
+    .feld.ueben  { background: #f4a261; }
+    .feld.schwer { background: #e63946; }
+    .feld.kann   { background: #2a9d8f; }
+    .legende { font-size: 13px; color: #666; margin-top: 8px; }
+
+    /* Münz-Belohnung, die kurz in der Mitte aufpoppt */
+    #muenzePlus {
+      position: fixed;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 90px;
+      pointer-events: none;
+      display: none;
+    }
+    #muenzePlus.zeigen { display: block; animation: hupf 1.3s ease-out; }
+    @keyframes hupf {
+      0%   { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+      30%  { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+      70%  { transform: translate(-50%, -80%) scale(1);   opacity: 1; }
+      100% { transform: translate(-50%, -160%) scale(0.6); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ================= INHALT (HTML) ================= -->
+
+  <div class="kopf">
+    <h1>🧮 Einmaleins</h1>
+    <div class="muenzen">🪙 <span id="muenzZahl">0</span></div>
+  </div>
+
+  <!-- Startseite -->
+  <div id="start">
+    <div class="begruessung">
+      <!-- Tippt man auf den Kreis, kann man ein Foto auswählen -->
+      <label class="foto">
+        <img id="foto" alt="Foto">
+        <span id="fotoHinweis">📷<br>Foto<br>wählen</span>
+        <input type="file" id="fotoWahl" accept="image/*" style="display:none">
+      </label>
+      <h2>Hallo <span id="name"></span>! <span class="winken">👋</span></h2>
+    </div>
+    <p class="frage">Welche Reihe willst du heute üben?</p>
+    <div class="raster" id="karten"></div>
+    <button class="zuruecksetzen" id="zuruecksetzen">Fortschritt zurücksetzen</button>
+  </div>
+
+  <!-- Spielseite -->
+  <div id="spiel">
+    <div style="text-align:left; margin-bottom:8px;">
+      <button class="zurueck" id="zurueck">← Reihen</button>
+    </div>
+
+    <div id="aufgabe"></div>
+    <div id="anzeige"></div>
+    <div id="rueckmeldung"></div>
+    <div id="bisMuenze"></div>
+
+    <div class="tastatur" id="tastatur"></div>
+
+    <div class="fortschritt-titel" id="fortschrittTitel"></div>
+    <div class="fortschritt" id="fortschritt"></div>
+    <div class="legende">
+      ⬜ neu &nbsp; 🟥 noch falsch &nbsp; 🟧 am Üben &nbsp; 🟩 kann ich
+    </div>
+  </div>
+
+  <div id="muenzePlus">🪙</div>
+
+
+  <!-- ================= VERHALTEN (JavaScript) ================= -->
+  <script>
+    // ---------- Einstellungen ----------
+    const GEKONNT_AB = 3;          // so oft hintereinander richtig = "kann ich"
+    const MUENZE_ALLE = 5;         // alle 5 richtigen Antworten gibt es eine Münze
+    const SPEICHER_NAME = "einmaleins-daten";
+
+    const TIERE  = ["🐞", "🐰", "🐸", "🐢", "🦊", "🐼", "🦁", "🐙", "🐳", "🦄"];
+    const FARBEN = ["#e63946", "#f3722c", "#d68c00", "#43aa8b", "#2a9d8f",
+                    "#277da1", "#577590", "#8338ec", "#d63384", "#4d908e"];
+    const LOB = ["🎉 Super!", "⭐ Richtig!", "👏 Toll gemacht!", "💪 Stark!", "🚀 Genau!"];
+
+    // ---------- Variablen ----------
+    let gewaehlteReihe = null;     // 1 bis 10, oder 0 für "gemischt"
+    let aktuelle = null;           // die aktuelle Aufgabe, z. B. { zahl: 4, reihe: 7 }
+    let eingabe = "";              // was gerade eingetippt wurde
+    let gesperrt = false;          // während der Rückmeldung keine Eingabe möglich
+
+
+    // ================= SPEICHERN & LADEN =================
+    // Alles wird im Browser gespeichert (localStorage) und bleibt auch
+    // nach dem Schliessen der App erhalten.
+
+    let daten = laden();
+
+    function laden() {
+      try {
+        const text = localStorage.getItem(SPEICHER_NAME);
+        if (text) return JSON.parse(text);
+      } catch (fehler) {}
+      return { aufgaben: {}, muenzen: 0, richtigInsgesamt: 0 };
+    }
+
+    function speichern() {
+      try {
+        localStorage.setItem(SPEICHER_NAME, JSON.stringify(daten));
+      } catch (fehler) {}
+    }
+
+    // Liefert die gespeicherten Werte einer Rechnung, z. B. 4 × 7
+    function info(zahl, reihe) {
+      const schluessel = zahl + "x" + reihe;
+      if (!daten.aufgaben[schluessel]) {
+        daten.aufgaben[schluessel] = { richtig: 0, falsch: 0, serie: 0 };
+      }
+      return daten.aufgaben[schluessel];
+    }
+
+    // Wie gut kann er diese Rechnung?
+    function status(a) {
+      if (a.serie >= GEKONNT_AB) return "kann";
+      if (a.richtig === 0 && a.falsch === 0) return "neu";
+      if (a.serie === 0) return "schwer";   // letzte Antwort war falsch
+      return "ueben";
+    }
+
+    function gekonntInReihe(reihe) {
+      let anzahl = 0;
+      for (let zahl = 1; zahl <= 10; zahl++) {
+        if (status(info(zahl, reihe)) === "kann") anzahl++;
+      }
+      return anzahl;
+    }
+
+
+    // ================= STARTSEITE =================
+
+    function zeigeStart() {
+      document.getElementById("spiel").style.display = "none";
+      document.getElementById("start").style.display = "block";
+
+      const karten = document.getElementById("karten");
+      karten.innerHTML = "";
+
+      for (let reihe = 1; reihe <= 10; reihe++) {
+        const gekonnt = gekonntInReihe(reihe);
+        const text = gekonnt === 10 ? "🏆 Geschafft!" : gekonnt + " von 10 ⭐";
+        karten.appendChild(macheKarte(
+          TIERE[reihe - 1], reihe + "er-Reihe", FARBEN[reihe - 1],
+          gekonnt * 10, text, reihe
+        ));
+      }
+
+      // Karte "Alle gemischt"
+      let gesamt = 0;
+      for (let reihe = 1; reihe <= 10; reihe++) gesamt += gekonntInReihe(reihe);
+      const karte = macheKarte("🎲", "Alle gemischt", "#ff7b00",
+                               gesamt, gesamt + " von 100 ⭐", 0);
+      karte.classList.add("gemischt");
+      karten.appendChild(karte);
+
+      muenzenAnzeigen();
+    }
+
+    function macheKarte(tier, name, farbe, prozent, text, reihe) {
+      const karte = document.createElement("button");
+      karte.className = "karte";
+      karte.style.background = farbe;
+      karte.innerHTML =
+        '<span class="tier">' + tier + '</span>' +
+        '<span class="name">' + name + '</span>' +
+        '<div class="balken"><div style="width:' + prozent + '%"></div></div>' +
+        '<span class="stand">' + text + '</span>';
+      karte.onclick = function () { starteSpiel(reihe); };
+      return karte;
+    }
+
+
+    // ================= SPIELSEITE =================
+
+    function starteSpiel(reihe) {
+      gewaehlteReihe = reihe;
+      aktuelle = null;
+      document.getElementById("start").style.display = "none";
+      document.getElementById("spiel").style.display = "block";
+      document.getElementById("rueckmeldung").textContent = "";
+      neueAufgabe();
+    }
+
+    // Die schlaue Auswahl: Rechnungen, die er noch nicht kann, kommen öfter dran.
+    function gewicht(a) {
+      if (a.serie >= GEKONNT_AB) return 1;                    // kann er schon → selten
+      if (a.richtig === 0 && a.falsch === 0) return 5;       // noch nie gefragt
+      return 6 + Math.min(a.falsch, 5) * 2 - a.serie * 2;    // oft falsch → sehr oft
+    }
+
+    function waehleAufgabe() {
+      // 1) alle möglichen Rechnungen sammeln
+      const reihen = gewaehlteReihe === 0 ? [1,2,3,4,5,6,7,8,9,10] : [gewaehlteReihe];
+      let kandidaten = [];
+      for (const reihe of reihen) {
+        for (let zahl = 1; zahl <= 10; zahl++) {
+          // nicht zweimal dieselbe Aufgabe hintereinander
+          if (aktuelle && aktuelle.zahl === zahl && aktuelle.reihe === reihe) continue;
+          kandidaten.push({ zahl: zahl, reihe: reihe, gewicht: gewicht(info(zahl, reihe)) });
+        }
+      }
+
+      // 2) zufällig ziehen – schwere Rechnungen haben mehr "Lose"
+      let summe = 0;
+      for (const k of kandidaten) summe += k.gewicht;
+      let los = Math.random() * summe;
+      for (const k of kandidaten) {
+        los -= k.gewicht;
+        if (los < 0) return k;
+      }
+      return kandidaten[kandidaten.length - 1];
+    }
+
+    function neueAufgabe() {
+      aktuelle = waehleAufgabe();
+      eingabe = "";
+      gesperrt = false;
+      document.getElementById("aufgabe").textContent = aktuelle.zahl + " × " + aktuelle.reihe + " = ?";
+      document.getElementById("anzeige").className = "";
+      document.getElementById("rueckmeldung").textContent = "";
+      anzeigeAktualisieren();
+      fortschrittZeigen();
+      bisMuenzeZeigen();
+    }
+
+    function anzeigeAktualisieren() {
+      document.getElementById("anzeige").textContent = eingabe;
+    }
+
+
+    // ---------- Zahlentastatur ----------
+
+    function baueTastatur() {
+      const tastatur = document.getElementById("tastatur");
+      const tasten = ["1","2","3","4","5","6","7","8","9","⌫","0","✓"];
+      for (const t of tasten) {
+        const knopf = document.createElement("button");
+        knopf.textContent = t;
+        knopf.className = "taste";
+        if (t === "⌫") knopf.classList.add("loeschen");
+        if (t === "✓") knopf.classList.add("ok");
+        knopf.onclick = function () { tasteGedrueckt(t); };
+        tastatur.appendChild(knopf);
+      }
+    }
+
+    function tasteGedrueckt(t) {
+      if (gesperrt) return;
+      if (t === "⌫") {
+        eingabe = eingabe.slice(0, -1);
+      } else if (t === "✓") {
+        pruefen();
+        return;
+      } else if (eingabe.length < 3) {
+        eingabe += t;
+      }
+      anzeigeAktualisieren();
+    }
+
+    // Auch mit einer echten Tastatur bedienbar (z. B. am Computer)
+    document.addEventListener("keydown", function (e) {
+      if (document.getElementById("spiel").style.display !== "block") return;
+      if (e.key >= "0" && e.key <= "9") tasteGedrueckt(e.key);
+      if (e.key === "Backspace") tasteGedrueckt("⌫");
+      if (e.key === "Enter") tasteGedrueckt("✓");
+    });
+
+
+    // ---------- Antwort prüfen ----------
+
+    function pruefen() {
+      if (eingabe === "") return;
+      gesperrt = true;
+
+      const a = info(aktuelle.zahl, aktuelle.reihe);
+      const ergebnis = aktuelle.zahl * aktuelle.reihe;
+      const anzeige = document.getElementById("anzeige");
+      const rueckmeldung = document.getElementById("rueckmeldung");
+      let wartezeit;
+
+      if (Number(eingabe) === ergebnis) {
+        a.richtig++;
+        a.serie++;
+        daten.richtigInsgesamt++;
+        anzeige.className = "richtig";
+        rueckmeldung.textContent = LOB[Math.floor(Math.random() * LOB.length)];
+
+        // Reihe gerade fertig gelernt?
+        if (a.serie === GEKONNT_AB && gekonntInReihe(aktuelle.reihe) === 10) {
+          rueckmeldung.textContent = "🏆 Du kannst die " + aktuelle.reihe + "er-Reihe!";
+        }
+
+        // Alle 5 richtigen Antworten eine Münze
+        if (daten.richtigInsgesamt % MUENZE_ALLE === 0) {
+          daten.muenzen++;
+          muenzeFeiern();
+        }
+        wartezeit = 1200;
+      } else {
+        a.falsch++;
+        a.serie = 0;
+        anzeige.className = "falsch";
+        rueckmeldung.textContent = "Fast! " + aktuelle.zahl + " × " + aktuelle.reihe + " = " + ergebnis;
+        wartezeit = 2800;   // länger zeigen, damit er sich das Ergebnis merken kann
+      }
+
+      speichern();
+      muenzenAnzeigen();
+      fortschrittZeigen();
+      bisMuenzeZeigen();
+      setTimeout(neueAufgabe, wartezeit);
+    }
+
+
+    // ---------- Anzeigen ----------
+
+    function fortschrittZeigen() {
+      // Bei "gemischt" zeigen wir die Reihe der aktuellen Aufgabe
+      const reihe = aktuelle.reihe;
+      document.getElementById("fortschrittTitel").textContent =
+        TIERE[reihe - 1] + " Deine " + reihe + "er-Reihe";
+
+      const feld = document.getElementById("fortschritt");
+      feld.innerHTML = "";
+      for (let zahl = 1; zahl <= 10; zahl++) {
+        const a = info(zahl, reihe);
+        const div = document.createElement("div");
+        div.className = "feld " + status(a);
+        div.innerHTML = zahl + "×" + reihe + "<small>✓ " + a.richtig + "</small>";
+        feld.appendChild(div);
+      }
+    }
+
+    function muenzenAnzeigen() {
+      document.getElementById("muenzZahl").textContent = daten.muenzen;
+    }
+
+    function bisMuenzeZeigen() {
+      const noch = MUENZE_ALLE - (daten.richtigInsgesamt % MUENZE_ALLE);
+      document.getElementById("bisMuenze").textContent =
+        "Noch " + noch + " richtige bis zur nächsten 🪙";
+    }
+
+    function muenzeFeiern() {
+      const m = document.getElementById("muenzePlus");
+      m.classList.remove("zeigen");
+      void m.offsetWidth;          // kleiner Trick, damit die Animation neu startet
+      m.classList.add("zeigen");
+    }
+
+
+    // ================= KNÖPFE & START =================
+
+    document.getElementById("zurueck").onclick = zeigeStart;
+
+    document.getElementById("zuruecksetzen").onclick = function () {
+      if (confirm("Wirklich den ganzen Fortschritt und alle Münzen löschen?")) {
+        daten = { aufgaben: {}, muenzen: 0, richtigInsgesamt: 0 };
+        speichern();
+        zeigeStart();
+      }
+    };
+
+    // ================= BEGRÜSSUNG & FOTO =================
+    // Das Foto wird nur auf diesem Gerät gespeichert – es kommt nicht auf GitHub.
+
+    const NAME = "Rémi";
+    const FOTO_SPEICHER = "einmaleins-foto";
+
+    document.getElementById("name").textContent = NAME;
+
+    function fotoAnzeigen() {
+      let bild = null;
+      try { bild = localStorage.getItem(FOTO_SPEICHER); } catch (fehler) {}
+      if (bild) {
+        const img = document.getElementById("foto");
+        img.src = bild;
+        img.style.display = "block";
+        document.getElementById("fotoHinweis").style.display = "none";
+      }
+    }
+
+    // Wenn ein Foto ausgewählt wurde: verkleinern, speichern, anzeigen
+    document.getElementById("fotoWahl").onchange = function () {
+      const datei = this.files[0];
+      if (!datei) return;
+      const leser = new FileReader();
+      leser.onload = function () {
+        const original = new Image();
+        original.onload = function () {
+          // quadratisch zuschneiden und auf 300 × 300 Pixel verkleinern
+          const groesse = 300;
+          const seite = Math.min(original.width, original.height);
+          const leinwand = document.createElement("canvas");
+          leinwand.width = groesse;
+          leinwand.height = groesse;
+          leinwand.getContext("2d").drawImage(
+            original,
+            (original.width - seite) / 2, (original.height - seite) / 2, seite, seite,
+            0, 0, groesse, groesse
+          );
+          try {
+            localStorage.setItem(FOTO_SPEICHER, leinwand.toDataURL("image/jpeg", 0.85));
+          } catch (fehler) {}
+          fotoAnzeigen();
+        };
+        original.src = leser.result;
+      };
+      leser.readAsDataURL(datei);
+    };
+
+    baueTastatur();
+    fotoAnzeigen();
+    zeigeStart();
+  </script>
+
+</body>
+</html>
