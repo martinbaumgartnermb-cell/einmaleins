@@ -11,6 +11,7 @@
   <!-- ================= AUSSEHEN (CSS) ================= -->
   <style>
     * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
 
     body {
       margin: 0;
@@ -183,6 +184,40 @@
     .feld.kann   { background: #2a9d8f; }
     .legende { font-size: 13px; color: #666; margin-top: 8px; }
 
+    /* ---------- Einmaleins-Karte ---------- */
+    #karte { display: none; padding: 0 12px 30px; max-width: 640px; margin: 0 auto; }
+    .k-titel { font-size: 30px; color: #e85d04; margin: 4px 0 4px; }
+    .k-stand { font-size: 19px; margin: 4px 0 8px; }
+    .k-balken { background: #f1e4cf; max-width: 420px; margin: 0 auto 14px; }
+    .k-balken div { background: linear-gradient(90deg, #06d6a0, #2a9d8f); }
+    #karteBanner { font-size: 22px; font-weight: bold; background: white; border: 4px solid #ffd166; border-radius: 20px;
+                   padding: 10px 14px; margin: 6px 0 12px; animation: reinhuepfen .6s ease-out; }
+    .landkarte { display: grid; grid-template-columns: repeat(11, 1fr); gap: 3px; background: white; padding: 8px;
+                 border-radius: 20px; box-shadow: 0 4px 14px rgba(0,0,0,.08); }
+    .zelle { aspect-ratio: 1; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+             font-size: 15px; font-weight: bold; color: white; }
+    .zelle.kopf { color: #999; font-size: 16px; }
+    .zelle.mal { color: #e85d04; font-size: 20px; }
+    .zelle.nebel { background: #ece5d8; color: #c4b8a2; }
+    .zelle.nebel.ueben { background: #ffe1c2; color: #d08a3e; }
+    .zelle.monster { background: #5a4672; font-size: 19px; }
+    .zelle.monster.ueben { background: #8a5ab0; }
+    .zelle.neu-erobert { animation: erobert 1s ease-out 3; box-shadow: 0 0 0 3px #ffd166; }
+    @keyframes erobert { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
+    .k-legende { font-size: 14px; color: #777; margin: 8px 0 16px; }
+    .modi { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+    .modi .karte .name { font-size: 21px; }
+    .modi .karte[disabled] { opacity: .5; }
+    .k-tipp { font-size: 16px; color: #666; background: #fff8dc; border: 3px dashed #ffd166; border-radius: 18px;
+              padding: 10px 14px; margin-top: 18px; line-height: 1.45; text-align: left; }
+
+    /* Im Spiel: Missions-Zähler, Monster-Leben, Blitz-Uhr */
+    #modusInfo { font-size: 20px; font-weight: bold; color: #555; min-height: 28px; margin-bottom: 4px; }
+    .blitz-balken { height: 14px; background: #f1e4cf; border-radius: 7px; overflow: hidden; margin: 0 auto 8px; max-width: 330px; }
+    .blitz-balken div { height: 100%; background: linear-gradient(90deg, #e63946, #ffb703); width: 100%; transition: width .25s linear; }
+    .weg { font-size: 18px; color: #555; background: white; border-radius: 14px; padding: 8px 12px; margin: 8px auto 0;
+           max-width: 420px; line-height: 1.4; }
+
     /* ---------- Sammelalbum (gleich in beiden Apps) ---------- */
     .album-knopf {
       display: flex; flex-direction: column; align-items: center; gap: 4px;
@@ -266,11 +301,29 @@
     <button class="zuruecksetzen" id="zuruecksetzen">Fortschritt zurücksetzen</button>
   </div>
 
+  <!-- Die Einmaleins-Karte: jedes Feld ist eine Rechnung -->
+  <div id="karte">
+    <div style="text-align:left; margin-bottom:4px;">
+      <button class="zurueck" id="karteZurueck">← Reihen</button>
+    </div>
+    <h2 class="k-titel">🗺️ Meine Einmaleins-Karte</h2>
+    <div id="karteBanner" hidden></div>
+    <div class="k-stand" id="karteStand"></div>
+    <div class="balken k-balken"><div id="karteBalken"></div></div>
+    <div class="landkarte" id="landkarte"></div>
+    <div class="k-legende">🌫️ noch im Nebel &nbsp; 🟧 am Üben &nbsp; 👾 Monster &nbsp; 🟩 erobert</div>
+    <div class="modi" id="modi"></div>
+    <div class="k-tipp">💡 <b>Tauschaufgaben:</b> 3 × 8 ist gleich viel wie 8 × 3. Wenn du eine kannst, wird auch die andere erobert!<br>
+      Ein Feld ist erobert, wenn du es <b>3-mal hintereinander</b> richtig hast.</div>
+  </div>
+
   <!-- Spielseite -->
   <div id="spiel">
     <div style="text-align:left; margin-bottom:8px;">
       <button class="zurueck" id="zurueck">← Reihen</button>
     </div>
+    <div id="modusInfo"></div>
+    <div class="blitz-balken" id="blitzBalken" hidden><div id="blitzRest"></div></div>
 
     <div id="aufgabe"></div>
     <div id="anzeige"></div>
@@ -279,10 +332,12 @@
 
     <div class="tastatur" id="tastatur"></div>
 
-    <div class="fortschritt-titel" id="fortschrittTitel"></div>
-    <div class="fortschritt" id="fortschritt"></div>
-    <div class="legende">
-      ⬜ neu &nbsp; 🟥 noch falsch &nbsp; 🟧 am Üben &nbsp; 🟩 kann ich
+    <div id="reihenFortschritt">
+      <div class="fortschritt-titel" id="fortschrittTitel"></div>
+      <div class="fortschritt" id="fortschritt"></div>
+      <div class="legende">
+        ⬜ neu &nbsp; 🟥 noch falsch &nbsp; 🟧 am Üben &nbsp; 🟩 kann ich
+      </div>
     </div>
   </div>
 
@@ -306,6 +361,7 @@
     let aktuelle = null;           // die aktuelle Aufgabe, z. B. { zahl: 4, reihe: 7 }
     let eingabe = "";              // was gerade eingetippt wurde
     let gesperrt = false;          // während der Rückmeldung keine Eingabe möglich
+    let lauf = 0;                  // zählt hoch, wenn ein Spiel startet oder endet (alte Timer ignorieren)
 
 
     // ================= SPEICHERN & LADEN =================
@@ -359,9 +415,20 @@
     function zeigeStart() {
       document.getElementById("spiel").style.display = "none";
       document.getElementById("start").style.display = "block";
+      document.getElementById("karte").style.display = "none";
 
       const karten = document.getElementById("karten");
       karten.innerHTML = "";
+      lauf++;
+      blitzStoppen();
+
+      // Grosse Karte ganz oben: die Einmaleins-Karte
+      const erobert = anzahlErobert();
+      const kk = macheKarte("🗺️", "Erobere die Einmaleins-Karte", "#2a9d8f", Math.round(erobert / 55 * 100),
+                            erobert === 55 ? "🏆 Alles erobert!" : erobert + " von 55 Feldern erobert", null);
+      kk.classList.add("gemischt");
+      kk.onclick = function () { zeigeKarte(); };
+      karten.appendChild(kk);
 
       for (let reihe = 1; reihe <= 10; reihe++) {
         const gekonnt = gekonntInReihe(reihe);
@@ -402,9 +469,18 @@
     function starteSpiel(reihe) {
       gewaehlteReihe = reihe;
       aktuelle = null;
+      lauf++;
+      const kartenModus = typeof reihe === "string";
       document.getElementById("start").style.display = "none";
+      document.getElementById("karte").style.display = "none";
       document.getElementById("spiel").style.display = "block";
       document.getElementById("rueckmeldung").textContent = "";
+      document.getElementById("reihenFortschritt").hidden = kartenModus;
+      document.getElementById("zurueck").textContent = kartenModus ? "← Karte" : "← Reihen";
+      document.getElementById("modusInfo").textContent = "";
+      document.getElementById("blitzBalken").hidden = reihe !== "blitz";
+      runde = { nr: 0, richtig: 0, neu: [], besiegt: 0 };
+      if (reihe === "blitz") blitzStarten();
       neueAufgabe();
     }
 
@@ -417,13 +493,20 @@
 
     function waehleAufgabe() {
       // 1) alle möglichen Rechnungen sammeln
-      const reihen = gewaehlteReihe === 0 ? [1,2,3,4,5,6,7,8,9,10] : [gewaehlteReihe];
+      const kartenModus = typeof gewaehlteReihe === "string";
+      const reihen = (gewaehlteReihe === 0 || kartenModus) ? [1,2,3,4,5,6,7,8,9,10] : [gewaehlteReihe];
+      const kernZuerst = gewaehlteReihe === "mission" && kernAnteil() < 0.7;
       let kandidaten = [];
       for (const reihe of reihen) {
         for (let zahl = 1; zahl <= 10; zahl++) {
           // nicht zweimal dieselbe Aufgabe hintereinander
           if (aktuelle && aktuelle.zahl === zahl && aktuelle.reihe === reihe) continue;
-          kandidaten.push({ zahl: zahl, reihe: reihe, gewicht: gewicht(info(zahl, reihe)) });
+          if (gewaehlteReihe === "monster" && !istMonster(zahl, reihe)) continue;
+          let g = gewicht(info(zahl, reihe));
+          if (kartenModus && istErobert(zahl, reihe)) g = 1;            // erobert (auch per Tauschaufgabe) → selten
+          if (kernZuerst && !istKern(zahl, reihe) && !istErobert(zahl, reihe)) g *= 0.25;  // erst die leichten Kernaufgaben
+          if (gewaehlteReihe === "blitz") g = istErobert(zahl, reihe) ? 3 : 1;           // Blitz: vor allem Bekanntes
+          kandidaten.push({ zahl: zahl, reihe: reihe, gewicht: g });
         }
       }
 
@@ -442,11 +525,13 @@
       aktuelle = waehleAufgabe();
       eingabe = "";
       gesperrt = false;
-      document.getElementById("aufgabe").textContent = aktuelle.zahl + " × " + aktuelle.reihe + " = ?";
+      const monster = gewaehlteReihe === "monster" || (typeof gewaehlteReihe === "string" && istMonster(aktuelle.zahl, aktuelle.reihe) && !istErobert(aktuelle.zahl, aktuelle.reihe));
+      document.getElementById("aufgabe").textContent = (monster ? "👾 " : "") + aktuelle.zahl + " × " + aktuelle.reihe + " = ?";
       document.getElementById("anzeige").className = "";
       document.getElementById("rueckmeldung").textContent = "";
       anzeigeAktualisieren();
-      fortschrittZeigen();
+      if (typeof gewaehlteReihe !== "string") fortschrittZeigen();
+      modusInfoZeigen();
       bisStickerZeigen();
     }
 
@@ -500,6 +585,8 @@
       gesperrt = true;
 
       const a = info(aktuelle.zahl, aktuelle.reihe);
+      const warErobert = istErobert(aktuelle.zahl, aktuelle.reihe);
+      const blitz = gewaehlteReihe === "blitz";
       const ergebnis = aktuelle.zahl * aktuelle.reihe;
       const anzeige = document.getElementById("anzeige");
       const rueckmeldung = document.getElementById("rueckmeldung");
@@ -517,21 +604,42 @@
           rueckmeldung.textContent = "🏆 Du kannst die " + aktuelle.reihe + "er-Reihe!";
         }
 
+        // Neues Feld auf der Karte erobert?
+        if (!warErobert && istErobert(aktuelle.zahl, aktuelle.reihe)) {
+          runde.neu.push(aktuelle.zahl + "x" + aktuelle.reihe);
+          if (istMonster(aktuelle.zahl, aktuelle.reihe)) {
+            runde.besiegt++;
+            rueckmeldung.textContent = "💥 Monster besiegt! " + aktuelle.zahl + " × " + aktuelle.reihe + " = " + ergebnis;
+          } else if (typeof gewaehlteReihe === "string") {
+            rueckmeldung.textContent = "🗺️ Neues Feld erobert!";
+          }
+        }
+        runde.richtig++;
+
         // Alle 15 richtigen Antworten ein Sticker fürs Album
         const sticker = albumRichtig();
-        wartezeit = sticker ? 2400 : 1200;   // beim Sticker etwas länger, damit er ihn sieht
+        wartezeit = blitz ? 350 : sticker ? 2400 : 1200;   // beim Sticker etwas länger, damit er ihn sieht
       } else {
         a.falsch++;
         a.serie = 0;
         anzeige.className = "falsch";
-        rueckmeldung.textContent = "Fast! " + aktuelle.zahl + " × " + aktuelle.reihe + " = " + ergebnis;
-        wartezeit = 2800;   // länger zeigen, damit er sich das Ergebnis merken kann
+        // Nicht nur das Resultat zeigen, sondern auch einen Rechenweg mit einer leichten Kernaufgabe
+        rueckmeldung.innerHTML = "Fast! " + aktuelle.zahl + " × " + aktuelle.reihe + " = " + ergebnis +
+                                 (blitz ? "" : '<div class="weg">💡 ' + rechenweg(aktuelle.zahl, aktuelle.reihe) + '</div>');
+        wartezeit = blitz ? 1300 : 4500;   // länger zeigen, damit er sich den Weg merken kann
       }
 
+      runde.nr++;
       speichern();
-      fortschrittZeigen();
+      if (typeof gewaehlteReihe !== "string") fortschrittZeigen();
+      modusInfoZeigen();
       bisStickerZeigen();
-      setTimeout(neueAufgabe, wartezeit);
+      const meinLauf = lauf;
+      setTimeout(function () {
+        if (meinLauf !== lauf) return;                       // inzwischen zurückgegangen
+        if (rundeVorbei()) return;
+        neueAufgabe();
+      }, wartezeit);
     }
 
 
@@ -563,7 +671,10 @@
 
     // ================= KNÖPFE & START =================
 
-    document.getElementById("zurueck").onclick = zeigeStart;
+    document.getElementById("zurueck").onclick = function () {
+      if (typeof gewaehlteReihe === "string") zeigeKarte(); else zeigeStart();
+    };
+    document.getElementById("karteZurueck").onclick = zeigeStart;
 
     document.getElementById("zuruecksetzen").onclick = function () {
       if (confirm("Wirklich den ganzen Fortschritt löschen? (Die Sticker im Album bleiben.)")) {
@@ -572,6 +683,183 @@
         zeigeStart();
       }
     };
+
+    // ================= EINMALEINS-KARTE =================
+    // Jedes Feld der 10×10-Karte ist eine Rechnung. Ein Feld ist erobert, wenn er die Rechnung
+    // ODER ihre Tauschaufgabe kann (3 × 8 = 8 × 3). So bleiben nur 55 verschiedene Felder.
+    // Lernweg: zuerst die leichten Kernaufgaben (1×, 2×, 5×, 10× und die Quadratzahlen),
+    // dann die anderen – bei Fehlern zeigt die App, wie man sie aus einer Kernaufgabe ableitet.
+
+    const MISSION_LAENGE = 20;      // Aufgaben in der Tagesmission
+    const MONSTER_LAENGE = 12;      // Aufgaben in der Monster-Jagd
+    const BLITZ_SEKUNDEN = 60;
+    const BLITZ_AB = 20;            // Blitzrunde gibt es ab so vielen eroberten Feldern (zuerst sicher, dann schnell)
+
+    // Die schwierigen Rechnungen sind Monster
+    const MONSTER = ["3x7","3x8","3x9","4x6","4x7","4x8","4x9","6x6","6x7","6x8","6x9","7x7","7x8","7x9","8x8","8x9"];
+    function paar(z, r) { return Math.min(z, r) + "x" + Math.max(z, r); }
+    function istMonster(z, r) { return MONSTER.indexOf(paar(z, r)) >= 0; }
+    function istKern(z, r) { return [1, 2, 5, 10].indexOf(z) >= 0 || [1, 2, 5, 10].indexOf(r) >= 0 || z === r; }
+    function istErobert(z, r) { return status(info(z, r)) === "kann" || status(info(r, z)) === "kann"; }
+
+    function alleFelder() {           // die 55 verschiedenen Felder
+      const l = [];
+      for (let z = 1; z <= 10; z++) for (let r = z; r <= 10; r++) l.push([z, r]);
+      return l;
+    }
+    function anzahlErobert() { return alleFelder().filter(function (f) { return istErobert(f[0], f[1]); }).length; }
+    function kernAnteil() {
+      const kern = alleFelder().filter(function (f) { return istKern(f[0], f[1]); });
+      return kern.filter(function (f) { return istErobert(f[0], f[1]); }).length / kern.length;
+    }
+    function monsterUebrig() {
+      return alleFelder().filter(function (f) { return istMonster(f[0], f[1]) && !istErobert(f[0], f[1]); }).length;
+    }
+
+    // Rechenweg über eine Kernaufgabe, z. B. 7 × 8 = 5 × 8 + 2 × 8
+    function rechenweg(z, r) {
+      const kern = [1, 2, 5, 10];
+      if (kern.indexOf(z) < 0 && kern.indexOf(r) >= 0)
+        return "Tauschaufgabe: " + z + " × " + r + " = " + r + " × " + z + ". " + weg(r, z);
+      return weg(z, r);
+    }
+    function weg(n, r) {
+      const e = n * r;
+      switch (n) {
+        case 1:  return "1 × " + r + " ist einfach die " + r + ".";
+        case 2:  return "2 × " + r + " ist das Doppelte: " + r + " + " + r + " = " + e + ".";
+        case 5:  return "5 × " + r + " ist die Hälfte von 10 × " + r + ": Die Hälfte von " + (10 * r) + " ist " + e + ".";
+        case 10: return "10 × " + r + ": Häng einfach eine 0 an → " + e + ".";
+        case 3:  return "3 × " + r + " = 2 × " + r + " + " + r + " = " + (2 * r) + " + " + r + " = " + e + ".";
+        case 4:  return "4 × " + r + " = das Doppelte von 2 × " + r + ": " + (2 * r) + " + " + (2 * r) + " = " + e + ".";
+        case 6:  return "6 × " + r + " = 5 × " + r + " + " + r + " = " + (5 * r) + " + " + r + " = " + e + ".";
+        case 7:  return "7 × " + r + " = 5 × " + r + " + 2 × " + r + " = " + (5 * r) + " + " + (2 * r) + " = " + e + ".";
+        case 8:  return "8 × " + r + " = 10 × " + r + " − 2 × " + r + " = " + (10 * r) + " − " + (2 * r) + " = " + e + ".";
+        case 9:  return "9 × " + r + " = 10 × " + r + " − " + r + " = " + (10 * r) + " − " + r + " = " + e + ".";
+      }
+    }
+
+    let runde = { nr: 0, richtig: 0, neu: [], besiegt: 0 };
+    let zuletztNeu = [];              // auf der Karte kurz aufleuchten lassen
+
+    function zeigeKarte(banner) {
+      lauf++;
+      blitzStoppen();
+      document.getElementById("start").style.display = "none";
+      document.getElementById("spiel").style.display = "none";
+      document.getElementById("karte").style.display = "block";
+      const b = document.getElementById("karteBanner");
+      b.hidden = !banner;
+      b.innerHTML = banner || "";
+
+      const erobert = anzahlErobert();
+      document.getElementById("karteStand").innerHTML = erobert === 55
+        ? "🏆 <b>Die ganze Karte ist erobert!</b> Du kannst das Einmaleins!"
+        : "<b>" + erobert + " von 55</b> Feldern erobert";
+      document.getElementById("karteBalken").style.width = Math.round(erobert / 55 * 100) + "%";
+
+      const k = document.getElementById("landkarte");
+      let html = '<div class="zelle kopf mal">×</div>';
+      for (let r = 1; r <= 10; r++) html += '<div class="zelle kopf">' + r + '</div>';
+      for (let z = 1; z <= 10; z++) {
+        html += '<div class="zelle kopf">' + z + '</div>';
+        for (let r = 1; r <= 10; r++) {
+          const geuebt = info(z, r).richtig + info(r, z).richtig > 0;
+          const neu = zuletztNeu.indexOf(z + "x" + r) >= 0 || zuletztNeu.indexOf(r + "x" + z) >= 0;
+          if (istErobert(z, r)) {
+            html += '<div class="zelle' + (neu ? " neu-erobert" : "") + '" style="background:' + FARBEN[Math.max(z, r) - 1] + '">' + (z * r) + '</div>';
+          } else if (istMonster(z, r)) {
+            html += '<div class="zelle monster' + (geuebt ? " ueben" : "") + '">👾</div>';
+          } else {
+            html += '<div class="zelle nebel' + (geuebt ? " ueben" : "") + '">?</div>';
+          }
+        }
+      }
+      k.innerHTML = html;
+      zuletztNeu = [];
+
+      // Die drei Spielarten
+      const modi = document.getElementById("modi");
+      modi.innerHTML = "";
+      modi.appendChild(macheModus("🧭", "Tagesmission", "#2a9d8f", MISSION_LAENGE + " Aufgaben · Nebel lichten", "mission"));
+      const m = monsterUebrig();
+      modi.appendChild(macheModus("👾", "Monster-Jagd", "#5a4672",
+                                  m ? m + " Monster übrig" : "Alle besiegt! Nochmals jagen?", "monster"));
+      const rekord = daten.blitzRekord || 0;
+      const blitzKarte = macheModus("⚡", "Blitzrunde", "#e85d04",
+        erobert < BLITZ_AB ? "🔒 ab " + BLITZ_AB + " eroberten Feldern" : BLITZ_SEKUNDEN + " Sek. · Rekord: " + rekord, "blitz");
+      if (erobert < BLITZ_AB) blitzKarte.disabled = true;
+      modi.appendChild(blitzKarte);
+    }
+
+    function macheModus(tier, name, farbe, text, modus) {
+      const karte = document.createElement("button");
+      karte.className = "karte";
+      karte.style.background = farbe;
+      karte.innerHTML = '<span class="tier">' + tier + '</span><span class="name">' + name + '</span>' +
+                        '<span class="stand">' + text + '</span>';
+      karte.onclick = function () { starteSpiel(modus); };
+      return karte;
+    }
+
+    function modusInfoZeigen() {
+      const el = document.getElementById("modusInfo");
+      if (gewaehlteReihe === "mission") {
+        el.textContent = "🧭 Mission: Aufgabe " + Math.min(runde.nr + 1, MISSION_LAENGE) + " von " + MISSION_LAENGE;
+      } else if (gewaehlteReihe === "monster") {
+        const a = info(aktuelle.zahl, aktuelle.reihe);
+        const leben = istErobert(aktuelle.zahl, aktuelle.reihe) ? 0 : Math.max(1, GEKONNT_AB - a.serie);
+        el.textContent = leben ? "👾 Monster-Leben: " + "❤️".repeat(leben) : "💥 besiegt!";
+      } else if (gewaehlteReihe === "blitz") {
+        el.textContent = "⚡ " + runde.richtig + " richtig";
+      } else {
+        el.textContent = "";
+      }
+    }
+
+    // Ist die Runde fertig? Dann zurück zur Karte mit einer kleinen Meldung.
+    function rundeVorbei() {
+      let banner = null;
+      if (gewaehlteReihe === "mission" && runde.nr >= MISSION_LAENGE) {
+        banner = "🎉 Mission erfüllt! " + runde.richtig + " von " + runde.nr + " richtig" +
+                 (runde.neu.length ? "<br>🗺️ " + runde.neu.length + " neue Felder erobert!" : "");
+      } else if (gewaehlteReihe === "monster" && runde.nr >= MONSTER_LAENGE) {
+        banner = runde.besiegt ? "💥 Du hast " + runde.besiegt + " Monster besiegt!" : "👾 Gut gekämpft! Die Monster werden schwächer.";
+      } else if (gewaehlteReihe === "blitz" && blitzEnde && Date.now() >= blitzEnde) {
+        return true;                                   // die Blitz-Uhr beendet die Runde selbst
+      }
+      if (!banner) return false;
+      zuletztNeu = runde.neu.slice();
+      zeigeKarte(banner);
+      return true;
+    }
+
+    // ---------- Blitzrunde: 60 Sekunden, gegen den eigenen Rekord ----------
+    let blitzEnde = 0, blitzTimer = null;
+    function blitzStarten() {
+      blitzEnde = Date.now() + BLITZ_SEKUNDEN * 1000;
+      clearInterval(blitzTimer);
+      blitzTimer = setInterval(function () {
+        const rest = Math.max(0, blitzEnde - Date.now());
+        document.getElementById("blitzRest").style.width = (rest / (BLITZ_SEKUNDEN * 1000) * 100) + "%";
+        if (rest <= 0) blitzVorbei();
+      }, 250);
+    }
+    function blitzStoppen() { clearInterval(blitzTimer); blitzTimer = null; blitzEnde = 0; }
+    function blitzVorbei() {
+      blitzStoppen();
+      const alt = daten.blitzRekord || 0;
+      let banner = "⚡ Zeit um! <b>" + runde.richtig + " richtig</b> in " + BLITZ_SEKUNDEN + " Sekunden.";
+      if (runde.richtig > alt) {
+        daten.blitzRekord = runde.richtig;
+        speichern();
+        banner += alt ? "<br>🏆 Neuer Rekord! (vorher " + alt + ")" : "<br>🏆 Dein erster Rekord!";
+      } else {
+        banner += "<br>Dein Rekord: " + alt + " – das nächste Mal knackst du ihn!";
+      }
+      zuletztNeu = runde.neu.slice();
+      zeigeKarte(banner);
+    }
 
     // ================= BEGRÜSSUNG & FOTO =================
     // Das Foto wird nur auf diesem Gerät gespeichert – es kommt nicht auf GitHub.
